@@ -35,7 +35,7 @@ not_comm_names = list(departements_names) + list(regions_names)
 
 ###########
 def get_id(idx):
-    dataset_id = id_table[idx - 1]
+    dataset_id = id_table[idx - 1]  # TODO: The zero we receive the first time is then -1, we get the last elem of the list, not sure thats what we want
     return (dataset_id)
 
 
@@ -114,7 +114,7 @@ def text_to_loc(text):
 
 
 def add_id(dataframe, idx):
-    dataframe['id'] = get_id(idx)
+    dataframe['id'] = get_id(idx)  # TODO: we are sending here a 0 the first time
     return (dataframe)
 
 
@@ -124,15 +124,54 @@ def save_to(df_clean, new_location):
     np.save(new_location + '/locs.npy', df_clean_np, allow_pickle=True, fix_imports=True)
 
 
+def run(text_str:str, idx:int):
+    """
+    I crete a function that will receive and treat the elements from the iteration. Appending to a dataframe
+    is an expensive operation, so we will return a dict at each treatment. The output of the Parallel function
+    will be a list of dicts. This also has the advantage of not making a special index-zero case, as you have done
+    in line 140,141
+    """
+    location_df = text_to_loc(text_str)
+    add_id(location_df, idx)
+    return location_df.to_dict("r")[0]  # we transform it to dict using array mode ('r') cause i dont need the indices
+
 def main(file_dir):
-    all_locs_arr = np.load('../../data/locs_insee_str.npy')  # process_data(file_dir)
-    locs = text_to_loc(all_locs_arr[0])
+    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+    locs = text_to_loc(all_locs_arr[0])  # TODO we are sending here the 0th element, which is ['title', 'organization']
     add_id(locs, 0)
     for l in tqdm(range(1, len(all_locs_arr))):
         locs.append(add_id(text_to_loc(all_locs_arr[l]), l))
+
     save_to(locs, 'FOLDER')
     return (locs)
+
+## 1. First, we try to split the for loop and the function that actually does something with the iterated values
+def main(file_dir):
+    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+    job_output = []
+    for idx, locations in enumerate(all_locs_arr[:50]):
+        current_loc = run(locations, idx)
+        job_output.append(current_loc)
+
+    locs_df = pd.DataFrame(job_output)
+    save_to(locs_df, 'FOLDER')
+    return locs_df
+
+## 2. Now, we try and parallelize it
+def main_parallel(file_dir, n_jobs=4):
+    """
+    We do the same as before, but now parallelized. Make sure n_jobs > 1
+    """
+    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+    job_output = Parallel(n_jobs=n_jobs)(delayed(run)(locations, idx)
+                                         for idx, locations in tqdm(enumerate(all_locs_arr[:50])))
+
+    locs_df = pd.DataFrame(job_output)
+    save_to(locs_df, 'FOLDER')
+    return locs_df
+
 
 
 if __name__ == "__main__":
     main(argv[1])
+    # main_parallel("some_file_dir", 2)
