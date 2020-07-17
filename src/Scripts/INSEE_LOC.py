@@ -135,21 +135,21 @@ def run(text_str:str, idx:int):
     add_id(location_df, idx)
     return location_df.to_dict("r")[0]  # we transform it to dict using array mode ('r') cause i dont need the indices
 
-def main(file_dir):
-    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
-    locs = text_to_loc(all_locs_arr[0])  # TODO we are sending here the 0th element, which is ['title', 'organization']
-    add_id(locs, 0)
-    for l in tqdm(range(1, len(all_locs_arr))):
-        locs.append(add_id(text_to_loc(all_locs_arr[l]), l))
-
-    save_to(locs, 'FOLDER')
-    return (locs)
+# def main(file_dir):
+#     all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+#     locs = text_to_loc(all_locs_arr[0])  # TODO we are sending here the 0th element, which is ['title', 'organization']
+#     add_id(locs, 0)
+#     for l in tqdm(range(1, len(all_locs_arr))):
+#         locs.append(add_id(text_to_loc(all_locs_arr[l]), l))
+#
+#     save_to(locs, 'FOLDER')
+#     return (locs)
 
 ## 1. First, we try to split the for loop and the function that actually does something with the iterated values
 def main(file_dir):
-    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+    all_locs_arr = np.load('../../data/locs_insee_str.npy', allow_pickle=True)  # process_data(file_dir)
     job_output = []
-    for idx, locations in enumerate(all_locs_arr[:50]):
+    for idx, locations in enumerate(all_locs_arr[:10]):
         current_loc = run(locations, idx)
         job_output.append(current_loc)
 
@@ -162,7 +162,7 @@ def main_parallel(file_dir, n_jobs=4):
     """
     We do the same as before, but now parallelized. Make sure n_jobs > 1
     """
-    all_locs_arr = np.load('../../data/locs_insee.npy', allow_pickle=True)  # process_data(file_dir)
+    all_locs_arr = np.load('../../data/locs_insee_str.npy', allow_pickle=True)  # process_data(file_dir)
     job_output = Parallel(n_jobs=n_jobs)(delayed(run)(locations, idx)
                                          for idx, locations in tqdm(enumerate(all_locs_arr[:50])))
 
