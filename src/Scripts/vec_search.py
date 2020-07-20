@@ -34,7 +34,7 @@ def query2vec(search_query):
     return(y)
 
 def get_id(idx):
-    dataset_id=id_table[idx-1]
+    dataset_id=id_table[idx]
     return(dataset_id)
 
 def get_idx(ids):

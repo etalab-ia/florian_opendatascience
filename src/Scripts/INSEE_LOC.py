@@ -35,7 +35,7 @@ not_comm_names = list(departements_names) + list(regions_names)
 
 ###########
 def get_id(idx):
-    dataset_id = id_table[idx - 1]  # TODO: The zero we receive the first time is then -1, we get the last elem of the list, not sure thats what we want
+    dataset_id = id_table[idx]  # TODO: The zero we receive the first time is then -1, we get the last elem of the list, not sure thats what we want
     return (dataset_id)
 
 
@@ -96,8 +96,7 @@ def is_in(locs, category):
 def text_to_loc(text):
     if text == '':
         return pd.DataFrame({'ncc': ['None']})
-    if fuzz.token_set_ratio(text, 'France') == 100:
-        if text.find('Fort-de-France') == -1:
+    if (text.find(' france')!=-1) or (text.find(' France')!=-1):
             return pd.DataFrame({'ncc': ['France']})
     max_item, found_c = is_in(text, communes_names)
     location = communes.loc[[max_item]]
@@ -149,7 +148,7 @@ def run(text_str:str, idx:int):
 def main(file_dir):
     all_locs_arr = np.load('../../data/locs_insee_str.npy', allow_pickle=True)  # process_data(file_dir)
     job_output = []
-    for idx, locations in enumerate(all_locs_arr[:10]):
+    for idx, locations in tqdm(enumerate(all_locs_arr[:10])):
         current_loc = run(locations, idx)
         job_output.append(current_loc)
 
@@ -158,13 +157,13 @@ def main(file_dir):
     return locs_df
 
 ## 2. Now, we try and parallelize it
-def main_parallel(file_dir, n_jobs=4):
+def main_parallel(file_dir, n_jobs=10):
     """
     We do the same as before, but now parallelized. Make sure n_jobs > 1
     """
     all_locs_arr = np.load('../../data/locs_insee_str.npy', allow_pickle=True)  # process_data(file_dir)
     job_output = Parallel(n_jobs=n_jobs)(delayed(run)(locations, idx)
-                                         for idx, locations in tqdm(enumerate(all_locs_arr[:50])))
+                                         for idx, locations in tqdm(enumerate(all_locs_arr)))
 
     locs_df = pd.DataFrame(job_output)
     save_to(locs_df, 'FOLDER')
@@ -173,5 +172,5 @@ def main_parallel(file_dir, n_jobs=4):
 
 
 if __name__ == "__main__":
-    main(argv[1])
-    # main_parallel("some_file_dir", 2)
+    #main(argv[1])
+    main_parallel("some_file_dir", 10)
