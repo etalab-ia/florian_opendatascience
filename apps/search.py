@@ -82,7 +82,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div(children=[
     html.Div(["Input: ", dcc.Input(id='my-input', value='association', type='text')]),
     html.H3("Résultats :"),
-    html.Div(id='my-output'),
+    dbc.Spinner(html.Div(id='my-output')),
 ])
 
 def dataset(id):
