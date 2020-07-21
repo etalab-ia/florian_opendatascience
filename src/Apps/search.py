@@ -7,6 +7,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
+
 import plotly.express as px
 import pandas as pd
 
@@ -21,12 +22,13 @@ import sys
 import unidecode
 #from sklearn.decomposition import PCA
 #QUERY  Neighbours Ids_and_Score_bool
-directory='../src/'
+directory='../'
 argv=sys.argv
 nlp = spacy.load("fr_core_news_lg")
 pca = pickle.load(open(directory+'models/pca_30.pkl','rb'))
 pca_space= np.load(directory+'models/vectors_pca_30.npy', allow_pickle=True)
 id_table=list(np.load(directory+'../data/id_table.npy', allow_pickle=True))
+data=pd.read_csv('../../data/Catalogue_locs.csv', sep=',',error_bad_lines=False, encoding='latin-1')
 tree = spatial.KDTree(pca_space)
 from spacy.lang.fr.stop_words import STOP_WORDS
 from spacy.lang.fr import French
@@ -52,7 +54,7 @@ def get_id(idx):
     return(dataset_id)
 
 def get_idx(ids):
-    dataset_idx=id_table.index(ids)+1
+    dataset_idx=id_table.index(ids)
     return(dataset_idx)
 
 def id2vec(ids):
@@ -85,22 +87,27 @@ app.layout = html.Div(children=[
     dbc.Spinner(html.Div(id='my-output')),
 ])
 
-def dataset(id):
-    res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{id}')
-    return res.json()
-
-def embed(id):
+def dataset(ids):
+    #res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{ids}')
+    #return res.json()
+    idx=get_idx(ids)
+    #print(idx)
+    df=data.loc[idx]
+    return(df)
+def embed(ids, score):
     # html = dash_dangerously_set_inner_html.DangerouslySetInnerHTML(f"""
     #     <div data-udata-dataset="{id}"></div>
     #     <script data-udata="https://www.data.gouv.fr/" src="https://static.data.gouv.fr/static/oembed.js" async defer></script>
     # """)
 
-    ds = dataset(id)
+    ds = dataset(ids)
     print(ds)
     output = html.Tr([
-        html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{id}")),
-        html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{id}")),
-        html.Td(ds['description'])
+        html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}")),
+        html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}")),
+        html.Td(ds['description']),
+        html.Td(ds['pred locs']),
+        html.Td(score),
     ])
 
     return output
@@ -110,8 +117,9 @@ def embed(id):
     [Input(component_id='my-input', component_property='value')]
 )
 def update_output_div(input_value):
-    results = [ embed(r) for r in Search(input_value, 10)[0] ]
-
+    knns=Search(input_value, 10)
+    results = [ embed(i, j) for i,j in zip(knns[0], knns[1] ) ]
+  
     # print(f" 👀 {input_value}")
     # print(f" results: {results}")
 #    results = html.Div([ embed(r) for r in Search(input_value, 10) ])
@@ -121,11 +129,13 @@ def update_output_div(input_value):
         html.Thead(html.Tr([
             html.Th("id"),
             html.Th("titre"),
-            html.Th("description")
+            html.Th("description"),
+            html.Th("Localisation"),
+            html.Th("Distance"),
         ]))
     ]
 
     return dbc.Table(header + results, striped=True)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(port=8050, debug=True)
