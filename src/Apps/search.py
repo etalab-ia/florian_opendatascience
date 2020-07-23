@@ -82,7 +82,7 @@ def Similarity(ids, n):
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = html.Div(children=[
-    html.Div(["Input: ", dcc.Input(id='my-input', value='association', type='text')]),
+    html.Div(["Input: ", dcc.Input(id='my-input', value='association', type='text')], width={"size": 6, "offset": 3}),
     html.H3("Résultats :"),
     dbc.Spinner(html.Div(id='my-output')),
 ])
@@ -135,7 +135,7 @@ def update_output_div(input_value):
         ]))
     ]
 
-    return dbc.Table(header + results, striped=True)
+    return dbc.Table(header + [html.Tbody(results)], bordered=True, hover=True, responsive=True,  striped=True)
 
 if __name__ == '__main__':
     app.run_server(port=8050, debug=True)
