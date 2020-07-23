@@ -77,16 +77,46 @@ def Search(search_query, n):
 def Similarity(ids, n):
     n_ids, score=neighbours(id2vec(ids), n)
     return(n_ids, score)
+
 #######
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-app.layout = html.Div(children=[
-    html.Div(["Input: ", dcc.Input(id='my-input', value='association', type='text')], width={"size": 6, "offset": 3}),
-    html.H3("Résultats :"),
-    dbc.Spinner(html.Div(id='my-output')),
-])
+DATAGOUV='https://static.data.gouv.fr/_themes/gouvfr/img/logo-social.png?_=2.1.4'
 
+search_bar = dbc.Row(
+    [
+        dbc.Col(dbc.Input(type="search", id="my-input", placeholder="Recherche", debounce=True)),
+        dbc.Col(
+            dbc.Button("Go", color="primary", className="ml-2"),
+            width="auto",
+        ),
+    ],
+    no_gutters=True,
+    className="ml-auto flex-nowrap mt-3 mt-md-0",
+    align="center",
+)
+
+navbar = dbc.Navbar(
+    [
+        html.A(
+            # Use row and col to control vertical alignment of logo / brand
+            dbc.Row(
+                [
+                    dbc.Col(html.Img(src=DATAGOUV, height="40px")),
+                    dbc.Col(dbc.NavbarBrand("Rechercher un jeu de donnée", style={'color':'White'}, className="ml-2")),
+                ],
+                align="center",
+                no_gutters=True,
+            ),
+            href="localhost:8050",
+        ),
+        dbc.NavbarToggler(id="navbar-toggler"),
+        dbc.Collapse(search_bar, id="navbar-collapse", navbar=True),
+    ],
+    color="MediumBlue",
+)
+
+#####################"
 def dataset(ids):
     #res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{ids}')
     #return res.json()
@@ -99,27 +129,52 @@ def embed(ids, score):
     #     <div data-udata-dataset="{id}"></div>
     #     <script data-udata="https://www.data.gouv.fr/" src="https://static.data.gouv.fr/static/oembed.js" async defer></script>
     # """)
-
     ds = dataset(ids)
     print(ds)
     output = html.Tr([
-        html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}")),
-        html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}")),
-        html.Td(ds['description']),
-        html.Td(ds['pred locs']),
-        html.Td(score),
+        html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
+        html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
+       # html.Td(ds['description'], colSpan=2),
+        html.Td(ds['pred locs'], colSpan=1),
+        html.Td(score, colSpan=1),
     ])
 
     return output
 
+############"
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+app.layout = html.Div(children=[
+    dbc.Row(dbc.Col(
+    html.Div( navbar
+             ))),
+    dbc.Row([dbc.Col(dbc.Spinner(html.Div(id='my-output')),width=7),
+    dbc.Col(dcc.Graph(id='graph'), width=5)]),
+    html.Div(id='knns', style={'display': 'none'})
+])
+
+
+
 @app.callback(
-    Output(component_id='my-output', component_property='children'),
+    Output(component_id='knns', component_property='children'),
     [Input(component_id='my-input', component_property='value')]
 )
-def update_output_div(input_value):
+def compute(input_value):
     knns=Search(input_value, 10)
+    print(knns)
+    knns=pd.DataFrame(knns).to_json()
+    return knns
+    
+    
+    
+@app.callback(
+    Output(component_id='my-output', component_property='children'),
+    [Input(component_id='knns', component_property='children')]
+)
+def update_output_div(knns):
+    knns=(list(pd.read_json(knns).loc[0]),list(pd.read_json(knns).loc[1])  )
+    print(knns)
     results = [ embed(i, j) for i,j in zip(knns[0], knns[1] ) ]
-  
     # print(f" 👀 {input_value}")
     # print(f" results: {results}")
 #    results = html.Div([ embed(r) for r in Search(input_value, 10) ])
@@ -127,15 +182,21 @@ def update_output_div(input_value):
 
     header = [
         html.Thead(html.Tr([
-            html.Th("id"),
-            html.Th("titre"),
-            html.Th("description"),
-            html.Th("Localisation"),
-            html.Th("Distance"),
+            html.Th("id", colSpan=1),
+            html.Th("titre", colSpan=1),
+          #  html.Th("description", colSpan=2),
+            html.Th("Localisation", colSpan=1),
+            html.Th("Distance", colSpan=1),
         ]))
     ]
 
     return dbc.Table(header + [html.Tbody(results)], bordered=True, hover=True, responsive=True,  striped=True)
+
+@app.callback(Output(component_id='graph', component_property='figure'), [Input('knns', 'children')])
+def update_graph(knns):
+    knns=pd.read_json(knns)
+    figure = px.scatter(knns)
+    return figure
 
 if __name__ == '__main__':
     app.run_server(port=8050, debug=True)
