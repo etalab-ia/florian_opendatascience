@@ -1,5 +1,5 @@
-import requests
-
+######### IMPORTS #############
+#-- DASH-- #
 import dash
 import dash_dangerously_set_inner_html
 import dash_bootstrap_components as dbc
@@ -8,77 +8,60 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-import plotly.express as px
-import pandas as pd
-
-#######
-
-##### Takes a search query as input and get the vectors from the whole dataset to compare.
-import spacy
-import pickle
+import requests
+#-- MISC--#
 import numpy as np
-from scipy import spatial
+import pandas as pd
+import scipy
 from sklearn.manifold import TSNE
-import sys
-import unidecode
-#from sklearn.decomposition import PCA
-#QUERY  Neighbours Ids_and_Score_bool
-directory='../'
-argv=sys.argv
-nlp = spacy.load("fr_core_news_lg")
-pca = pickle.load(open(directory+'models/pca_30.pkl','rb'))
-pca_space= np.load(directory+'models/vectors_pca_30.npy', allow_pickle=True)
-id_table=list(np.load(directory+'../data/id_table.npy', allow_pickle=True))
-data=pd.read_csv('../../data/Catalogue_locs.csv', sep=',',error_bad_lines=False, encoding='latin-1')
-tree = spatial.KDTree(pca_space)
-from spacy.lang.fr.stop_words import STOP_WORDS
-from spacy.lang.fr import French
-parser=French()
-stopwords = list(STOP_WORDS)
+import warnings
+warnings.filterwarnings('ignore')
 
-def process_query(search_query):
-    query=str(search_query).lower()
-    clean_query = unidecode.unidecode(query)
-    tokens=parser(clean_query)
-    tokens = [ word.lower_ for word in tokens ]
-    tokens = [ word for word in tokens if word not in stopwords]
-    tokens = " ".join([i for i in tokens])
-    return (tokens)
+#--MODEL--#
+import torch
+from sentence_transformers import SentenceTransformer, models
+model = SentenceTransformer('distiluse-base-multilingual-cased')
 
+#--LOADS--# (but a separate function should be able to recommpute these from the original csv)
+#data=pd.read_csv('../../data/catalogue_locs_dropped.csv',sep=',', encoding='latin-1')
+id_table_new=list(np.load('../../data/id_table_new.npy', allow_pickle=True))
+embeddings=np.load('../../data/multilingual_embeddings_v2.npy', allow_pickle=True)
+####### SEARCH FUNCTIONS ##########
 def query2vec(search_query):
-    x=nlp(search_query).vector #spacy 300d
-    y=pca.transform([x])[0] #pca 30d
-    return(y)
+    return(model.encode([search_query]))
 
 def get_id(idx):
-    dataset_id=id_table[idx-1]
+    dataset_id=id_table_new[idx]
     return(dataset_id)
 
 def get_idx(ids):
-    dataset_idx=id_table.index(ids)
+    dataset_idx=id_table_new.index(ids)
     return(dataset_idx)
 
 def id2vec(ids):
-    return(list(pca_space[get_idx(ids)]))
+    return(list(embeddings[get_idx(ids)]))
 
 def neighbours(vector, n):
     n_ids=[]
     score=[]
-    dist, pos=tree.query(vector, k=n)
-    for j in range(len(pos)):
-        n_ids.append(get_id(pos[j]))
-        score.append(1-dist[j]/50) ##very approximate metric
+    distances = scipy.spatial.distance.cdist(vector, embeddings, "cosine")[0]
+    results = zip(range(len(distances)), distances)
+    results = sorted(results, key=lambda x: x[1])
+    for idx, distance in results[0:n]:
+        n_ids.append(get_id(idx))
+        score.append(1-distance)
     return(n_ids, score, vector)
+
 def find_vectors(vector, n_ids):
     vectors=[]
     for ids in n_ids:
         vectors.append(id2vec(ids))
-    vectors.append(vector)
+    vectors.append(vector[0])
     tsne_vec = TSNE(n_components=2).fit_transform(vectors)
     return(tsne_vec)
 
 def Search(search_query, n):
-    n_ids, score, vector=neighbours(query2vec(process_query(search_query)), n)
+    n_ids, score, vector=neighbours(query2vec(search_query), n)
     tsne_vec=find_vectors(vector, n_ids)
     #print(n_ids, score)
     return(n_ids, score, tsne_vec)
@@ -86,7 +69,6 @@ def Search(search_query, n):
 def Similarity(ids, n):
     n_ids, score=neighbours(id2vec(ids), n)
     return(n_ids, score)
-
 #######
 
 
@@ -127,12 +109,12 @@ navbar = dbc.Navbar(
 
 #####################"
 def dataset(ids):
-    #res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{ids}')
-    #return res.json()
-    idx=get_idx(ids)
+    res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{ids}')
+    return res.json()
+    #idx=get_idx(ids)
     #print(idx)
-    df=data.loc[idx]
-    return(df)
+    #df=data.loc[idx]
+    #return(df)
 def embed(ids, score):
     # html = dash_dangerously_set_inner_html.DangerouslySetInnerHTML(f"""
     #     <div data-udata-dataset="{id}"></div>
@@ -143,7 +125,7 @@ def embed(ids, score):
         html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
         html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
        # html.Td(ds['description'], colSpan=2),
-        html.Td(ds['pred locs'], colSpan=1),
+        #html.Td(ds['pred locs'], colSpan=1),
         html.Td(score, colSpan=1),
     ])
 
@@ -191,7 +173,7 @@ def update_output_div(knns):
             html.Th("id", colSpan=1),
             html.Th("titre", colSpan=1),
           #  html.Th("description", colSpan=2),
-            html.Th("Localisation", colSpan=1),
+         #   html.Th("Localisation", colSpan=1),
             html.Th("Distance", colSpan=1),
         ]))
     ]
@@ -202,8 +184,8 @@ def update_output_div(knns):
 def update_graph(knns):
     knns=pd.read_json(knns)
     xy=np.array(list(knns.loc[2])).transpose()
-    color_list=[0]*(len(xy[0])-1)
-    color_list[-1]=2
+    color_list=['blue']*(len(xy[0])-1)
+    color_list[-1]='red'
     figure = go.Figure(data=go.Scatter(
         x=xy[0],
         y=xy[1],
