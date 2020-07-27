@@ -76,7 +76,7 @@ DATAGOUV='https://static.data.gouv.fr/_themes/gouvfr/img/logo-social.png?_=2.1.4
 
 search_bar = dbc.Row(
     [
-        dbc.Col(dbc.Input(type="search", id="my-input", placeholder="Recherche", debounce=True)),
+        dbc.Col(dbc.Input(type="search", id="my-input", value=' ', placeholder="Recherche", debounce=True)),
         dbc.Col(
             dbc.Button("Go", color="primary", className="ml-2"),
             width="auto",
@@ -121,6 +121,7 @@ def embed(ids, score):
     #     <script data-udata="https://www.data.gouv.fr/" src="https://static.data.gouv.fr/static/oembed.js" async defer></script>
     # """)
     ds = dataset(ids)
+    print(ds['id'])
     output = html.Tr([
         html.Td(html.A(ds['id'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
         html.Td(html.A(ds['title'], href=f"https://www.data.gouv.fr/fr/datasets/{ids}"), colSpan=1),
@@ -184,14 +185,17 @@ def update_output_div(knns):
 def update_graph(knns):
     knns=pd.read_json(knns)
     xy=np.array(list(knns.loc[2])).transpose()
-    color_list=['blue']*(len(xy[0])-1)
+    color_list=['blue']*len(xy[0])
     color_list[-1]='red'
     figure = go.Figure(data=go.Scatter(
         x=xy[0],
         y=xy[1],
         mode='markers',
+        text=[ dataset(i)['title'] for i in list(knns.loc[0])[:-1]]+['origin'],
         marker=dict(color=color_list)
     ))
+    
+    #names ds=datasets[knns[0]] ; nmaes=ds['title']
     return figure
 
 if __name__ == '__main__':

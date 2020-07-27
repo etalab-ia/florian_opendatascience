@@ -213,4 +213,4 @@ def update_graph(knns):
     return figure
 
 if __name__ == '__main__':
-    app.run_server(port=8050, debug=True)
+    app.run_server(port=8048, debug=True)
