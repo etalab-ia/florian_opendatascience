@@ -55,7 +55,8 @@ def fix_1252_codes(text):
 argv=sys.argv
 
 def process_file(file_dir):
-       """CSV file loaded and concatenated to a dataframe with the usefull columns:
+    """
+       CSV file loaded and concatenated to a dataframe with the usefull columns:
        'title', 'organization', 'description','tags'
 
     Keyword argument:
@@ -64,9 +65,9 @@ def process_file(file_dir):
     Returns:
     dfx (pandas dataframe of str) :Aggregated text
     id_table (python list of ints): list with the ids in the order of the dfx
-   """
+    """
     df=pd.read_csv(file_dir, sep=';',error_bad_lines=False, encoding='latin-1') #le fichier original
-    id_table=list(df['id'])
+    id_table=np.array(list(df['id']), dtype=object)
     df=df.astype(str)
     dfx=df[['title', 'organization', 'description','tags']].agg('. '.join, axis=1)
     return dfx, id_table
@@ -75,14 +76,14 @@ def filter_df(dff, table, new_location):
     too_short=[]
     
     for i in range(len(dff)):
-    if len(dff[i])>45:
-        too_short.append(i)
+        if len(dff[i])<45:
+            too_short.append(i)
     
     dff.drop(dff.index[too_short], inplace=True)
     table=np.delete(table, too_short, axis=0)
     np.save(new_location+'/id_table.npy', table, allow_pickle=True, fix_imports=True)
     
-    return df, table
+    return dff, table
     
 def super_cleaning(dfx):
     """dataframe is cleaned of the unicode errors, separators, spaces extensions links etc..
@@ -115,14 +116,15 @@ def super_cleaning(dfx):
 #dataset_in=np.load('../../data/cleaned2.npy', allow_pickle=True) en gros
 #path_out='../../data/multilingual_embeddings.npy'
 def embedder(dataset_in, path_out, save):
-    """Multilingual SBERT embedding of a pandas 1d dataset 
+    """
+    Multilingual SBERT embedding of a pandas 1d dataset 
 
     Keyword argument:
     dataset_in (npy array of str): the cleanest and most filtered
 
     Returns:
-    embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
-   """
+    embeddings (npy of floats) : The 512 embedding of each dataset as a "big sentence"
+    """
     model = SentenceTransformer('distiluse-base-multilingual-cased')
     dataset_in=dataset_in.to_numpy()
     embeddings= model.encode(dataset_in, batch_size=8, show_progress_bar=True)
@@ -131,7 +133,8 @@ def embedder(dataset_in, path_out, save):
     return(embeddings)
 
 def save_to(df_clean, new_location):
-     """Save the dataframe to new_location folder both in pkl and npy format
+    """
+     Save the dataframe to new_location folder both in pkl and npy format
 
     Keyword argument:
     df_clean (pandas dataframe): stored for further use
@@ -139,13 +142,14 @@ def save_to(df_clean, new_location):
 
     Returns:
     none 
-   """
+    """
     df_clean.to_pickle(new_location+'/df_clean.pkl')
-    df_clean_np=df_clean.to_numpy()
-    np.save(new_location+'/df_clean.npy', df_clean_np, allow_pickle=True, fix_imports=True, dtype=object)
+    df_clean_np=df_clean.to_numpy(dtype=object)
+    np.save(new_location+'/df_clean.npy', df_clean_np, allow_pickle=True, fix_imports=True)
 
 def clean(file_dir, new_location, df_save_opt ):
-      """Main function
+    """
+    Main function
     Produces the embeddings from the given CSV file location
     
 
@@ -155,8 +159,9 @@ def clean(file_dir, new_location, df_save_opt ):
     df_save_opt (bool): to activate or not saving the dataframe
 
     Returns:
-    none 
-   """
+    embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
+    id_table (python list of ints): list with the ids in the order of the dfx
+    """
     processed, table=process_file(file_dir)
     df_clean=super_cleaning(processed)
     df_clean_filtered, id_table=filter_df(df_clean, table, new_location)
@@ -164,10 +169,10 @@ def clean(file_dir, new_location, df_save_opt ):
                           
     if df_save_opt:
         save_to(df_clean, new_location)
-    return  
+    return embeddings, id_table 
 
 if __name__ == "__main__":
-        """Main function
+    """Main function
     Produces the embeddings from the given CSV file location
     
 
@@ -177,6 +182,7 @@ if __name__ == "__main__":
     df_save_opt (bool): to activate or not saving the dataframe
 
     Returns:
-    none 
-   """
+    embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
+    id_table (python list of ints): list with the ids in the order of the dfx 
+    """
     clean(argv[1], argv[2], argv[3])
