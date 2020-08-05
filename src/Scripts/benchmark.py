@@ -7,12 +7,11 @@ def load_queries(path='../../data/querys.csv'):
     df=pd.read_csv('../../data/querys.csv', sep=',',error_bad_lines=False, encoding='latin-1')
     ids=df['expected']
     queries=np.array(df['query'], dtype=str)
-    return ids, queries
+    return queries, ids
 
-global embeddings
 embeddings= opd.get_large_files('../../data/test')[0]
 
-def first_found_pos(queries):
+def first_found_pos(queries, ids):
     positions=[101]*len(queries)
     for i in range(len(queries)):
         results=opd.Search(queries[i],100)[0]
@@ -37,13 +36,15 @@ def classify_results(queries, positions):
                 bof.append((queries[q], positions[q]))
     return acceptable, bof, rejected
 
-def bench_score(queries):
-    positions=first_found_pos(queries)
+def bench_score(queries, ids):
+    positions=first_found_pos(queries, ids)
     score=0
     for i in positions:
         score+=101-i
     score=score/len(queries)
-    retrun(score)
+    print(score)
+    print(positions)
+    return(score)
     
 if __name__ == "__main__":
     """Main function
@@ -58,4 +59,5 @@ if __name__ == "__main__":
     embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
     id_table (python list of ints): list with the ids in the order of the dfx 
     """
-    bench_score(load_queries(argv[0])[1])
+    bench_args=load_queries(argv[0])
+    bench_score(bench_args[0], bench_args[1])

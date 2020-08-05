@@ -297,6 +297,9 @@ def Search(search_query, n):
     the higher the score the better: 1-dista
     tsne_vec (array of arrays of vectors 2d (from 512)): TSNE(2d) of the input vectors(512d)
     """
+    global embeddings
+    global id_table_new
+    embeddings, id_table_new=get_large_files('../../data/test')
     n_ids, score, vector=neighbours(query2vec(search_query), n)
     tsne_vec=tsne_vectors(vector, n_ids)
     return(n_ids, score, tsne_vec)
