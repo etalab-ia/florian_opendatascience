@@ -1,11 +1,9 @@
-##
-import sys
 import re
 import pandas as pd
 import numpy as np
-#
-import torch
-from sentence_transformers import SentenceTransformer, models
+#-- MISC--#
+import scipy.spatial.distance
+import warnings
 ##
 cp_1252_chars = {
     # from http://www.microsoft.com/typography/unicode/1252.htm
@@ -52,7 +50,6 @@ def fix_1252_codes(text):
     return text 
 
 #
-argv=sys.argv
 
 def process_file(file_dir):
     """
@@ -116,6 +113,8 @@ def super_cleaning(dfx):
 #dataset_in=np.load('../../data/cleaned2.npy', allow_pickle=True) en gros
 #path_out='../../data/multilingual_embeddings.npy'
 def embedder(dataset_in, path_out, save):
+    import torch
+    from sentence_transformers import SentenceTransformer, models
     """
     Multilingual SBERT embedding of a pandas 1d dataset 
 
@@ -159,7 +158,7 @@ def clean(file_dir, new_location, df_save_opt ):
     df_save_opt (bool): to activate or not saving the dataframe
 
     Returns:
-    embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
+    embeddings (npy of floats) : The 512 embedding of each dataset as a "big sentence"
     id_table (python list of ints): list with the ids in the order of the dfx
     """
     processed, table=process_file(file_dir)
@@ -171,17 +170,149 @@ def clean(file_dir, new_location, df_save_opt ):
         save_to(df_clean, new_location)
     return embeddings, id_table 
 
-if __name__ == "__main__":
-    """Main function
-    Produces the embeddings from the given CSV file location
-    
+def get_large_files(path):
+    """
+    Load the created files from Disk separately  
+
     Keyword argument:
-    file_dir (str): File location of the csv (catalog standard)
-    new_location (str): new location folder for saving data
-    df_save_opt (bool): to activate or not saving the dataframe
+    path (str): File location (common folder) of the embeddings and id_table
 
     Returns:
-    embeddings (npy of floats) : The 1024 embedding of each dataset as a "big sentence"
-    id_table (python list of ints): list with the ids in the order of the dfx 
+    embeddings (npy of floats) : The 512 embedding of each dataset as a "big sentence"
+    id_table (python list of ints): list with the ids in the order of the dfx
     """
-    clean(argv[1], argv[2], argv[3])
+    id_table_new=list(np.load(path+'/id_table.npy', allow_pickle=True))
+    embeddings=np.load(path+'/embeddings.npy', allow_pickle=True)
+    return(embeddings, id_table_new)
+####### SEARCH FUNCTIONS ##########
+def query2vec(search_query):
+    """
+    Transform the written query from user into a vector with the model 
+
+    Keyword argument:
+    search_query (str): Search query of the user
+
+    Returns:
+    (numpy array of floats) encoded search query in the 512 floats of the output model embedding
+    """
+    import torch
+    from sentence_transformers import SentenceTransformer, models
+    model = SentenceTransformer('distiluse-base-multilingual-cased')
+    return(model.encode([search_query]))
+
+def get_id(idx):
+    """
+    Gets the ID given an index in the table of datasets  
+
+    Keyword argument:
+    idx (int): Datasets idx in the order of the table
+
+    Returns:
+    dataset_id (str): The unique dataset identitfier from data gouv
+    """
+    dataset_id=id_table_new[idx]
+    return(dataset_id)
+
+def get_idx(ids):
+    """
+    Gets the idx given an ID of the unique dataset identifier  
+    
+    Keyword argument:
+    ids (str): The unique dataset identitfier from data gouv
+    
+    Returns:
+    idx (int): Datasets idx in the order of the table
+    """
+    dataset_idx=id_table_new.index(ids)
+    return(dataset_idx)
+
+def id2vec(ids):
+    """
+    Gets the embedded vectors given the data gouv id  
+    
+    Keyword argument:
+    ids (str): The unique dataset identitfier from data gouv
+    
+    Returns:
+    (list of numpy array of floats) : the datasets embeddings
+    """
+    return(list(embeddings[get_idx(ids)]))
+
+def neighbours(vector, n):
+    """
+    Computes the nearest n nearest vectors of a given vector in the embedding space 
+    
+    Keyword argument:
+    vector (np array): The vector of the search query or dataset to look for similarity
+    n (int): The number of neighbours to look for
+    
+    Returns:
+    n_ids (list of str): all the ids (data gouv) of the n nearest neighbours
+    score (list of float): the corresponding scores decreasing order, of the distance to the dataset
+    the higher the score the better: 1-distance
+    vector (np array): The vector of the search query or dataset to look for similarity needed for another function
+    no processing done from input vector
+    """
+    n_ids=[]
+    score=[]
+    distances = scipy.spatial.distance.cdist(vector, embeddings, "cosine")[0]
+    results = zip(range(len(distances)), distances)
+    results = sorted(results, key=lambda x: x[1])
+    for idx, distance in results[0:n]:
+        n_ids.append(get_id(idx))
+        score.append(1-distance)
+    return(n_ids, score, vector)
+
+def tsne_vectors(vector, n_ids):
+    """
+    Performs TSNE to visualise vectors (mais pas ouf) 
+    
+    Keyword argument:
+    vector (np array): The vector of the search query or dataset to look for similarity
+    n_ids (list of str): all the ids (data gouv) of the n nearest neighbours
+    
+    Returns:
+    tsne_vec (array of arrays of vectors 2d (from 512)): TSNE(2d) of the input vectors(512d)
+    """
+    from sklearn.manifold import TSNE
+    vectors=[]
+    for ids in n_ids:
+        vectors.append(id2vec(ids))
+    vectors.append(vector[0])
+    tsne_vec = TSNE(n_components=2).fit_transform(vectors)
+    return(tsne_vec)
+
+def Search(search_query, n):
+    """
+    Does the Search (just the concatenation of previous functions) 
+    
+    Keyword argument:
+    search_query (str): Search query of the user
+    n (int): The number of neighbours to look for
+    
+    
+    Returns:
+    n_ids (list of str): all the ids (data gouv) of the n nearest neighbours
+    score (list of float): the corresponding scores decreasing order, of the distance to the dataset
+    the higher the score the better: 1-dista
+    tsne_vec (array of arrays of vectors 2d (from 512)): TSNE(2d) of the input vectors(512d)
+    """
+    n_ids, score, vector=neighbours(query2vec(search_query), n)
+    tsne_vec=tsne_vectors(vector, n_ids)
+    return(n_ids, score, tsne_vec)
+
+def Similarity(ids, n):
+    """
+    Does the Similarity Search 
+    
+    Keyword argument:
+    ids (str): datagouv unique id
+    n (int): The number of similar datasets to look for
+    
+    
+    Returns:
+    n_ids (list of str): all the ids (data gouv) of the n most similar datasets
+    score (list of float): the corresponding scores decreasing order, of the distance to the dataset
+    """
+    n_ids, score=neighbours(id2vec(ids), n)
+    return(n_ids, score)
