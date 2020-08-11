@@ -282,6 +282,34 @@ def tsne_vectors(vector, n_ids):
     tsne_vec = TSNE(n_components=2).fit_transform(vectors)
     return(tsne_vec)
 
+def request_api(ids):
+    """
+    Does the API request on datagouv
+    
+    Keyword argument:
+    ids (str): datagouv unique id    
+    
+    Returns:
+    res (json): full json response
+    """
+    import requests
+    res = requests.get(f'https://www.data.gouv.fr/api/1/datasets/{ids}')
+    return res.json()
+    
+def request_results(n_ids):
+    """
+    Gives the titles of the ids foud by search and requested
+    
+    Keyword argument:
+    n_ids (list of str): all the ids (data gouv) of the n nearest neighbours    
+    
+    Returns:
+    rsults (list of str): all the titles of the search results
+    """
+    results = [ request_api(i)['title'] for i in n_ids ]
+    return(results) 
+    
+
 def Search(search_query, n):
     """
     Does the Search (just the concatenation of previous functions) 
