@@ -24,21 +24,23 @@ responses:
   utter_ask_recherche:
     - text: "Tapez votre recherche, une phrase ou meme plusieurs."
   utter_bye:
-    - text: Bye!
+    - text: "Bye!"
   utter_bad_answer:
-    - text: "Que voulez-vous faire maintenant?"
+    - text: "Je suis désolé, que voulez-vous faire maintenant?"
       buttons:
-        - title: "Trouver la réponse sur le site"
-          payload: "/bye"
+        - title: "Visiter data.gouv.fr"
+          payload: "/visite"
         - title: "Reformuler ma recherche"
           payload: "/chercher_jdd"
+  utter_visite:
+    - text: 'Vous pouvez vous rendre sur data.gouv.fr Merci pour votre échange et à bientôt !'
   utter_are_you_satisfied:
     - text: "Etes vous satisfait des résultats?"
       buttons:
         - title: "Oui"
-          payload: "/user_satisfied"
+          payload: "/thank"
         - title: "Non"
-          payload: "/user_not_satisfied"
+          payload: "/not_happy"
   utter_happy_bot:
     - text: 'A votre service(-public) !'
 

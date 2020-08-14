@@ -308,7 +308,7 @@ def request_results(n_ids):
     Returns:
     results (list of str): all the titles of the search results
     """
-    results = [request_api(i)['title'] for i in n_ids]
+    results = [(request_api(i)['title'], f'https://www.data.gouv.fr/fr/datasets/{i}') for i in n_ids]
     return (results)
 
 def Search(search_query, n=5):

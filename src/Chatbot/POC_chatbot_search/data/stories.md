@@ -1,6 +1,16 @@
+## welcome
+* welcome
+    -utter_welcome_message
+    
+## lancer_recherche
+* lancer_recherche
+    -utter_greet
+    
+
 ## greet
 * greet
-  - utter_greet
+  - utter_welcome_message
+
   
 ## poser_une_question à Piaf
 * chercher_jdd
@@ -11,14 +21,17 @@
 ## goodbye
 * bye
   - utter_bye
+## visite
+* visite
+    -utter_visite
 
-## the user is OK with the answer
-* user_satisfied
-  - utter_happy_bot
-
-## the user is nok with the answer
-* user_not_satisfied
+## the user is not happy
+* not_happy
   - utter_bad_answer
+
+## the user is happy
+* thank
+  - utter_happy_bot
   
 
     

@@ -48,15 +48,15 @@ class rechercheForm(FormAction):
     ) -> List[Dict]:
         recherche = tracker.get_slot('recherche')
         response = SBERT(recherche)
-        #Y faudrait peut-être faire un truc du style basé sur le score ou avec une notion de pertinence initiale.
-        #if response['probability'] > 0.80:
+        #Pas fait car score pas pertinent mais bon au cas où 
+        #if response['score'] > 0.80:
         #    dispatcher.utter_message(f"J'ai trouvé la réponse suivante: \n {response['answer']}")
          #   dispatcher.utter_message(f"Dans le corps de texte suivant: {response['context']}")
           #  dispatcher.utter_message(template='utter_are_you_satisfied')
         #else:
          #   dispatcher.utter_message(f"C'est embarrassant ... je n'arrive pas à trouver la réponse à la recherche: '{recherche}'")
           #  dispatcher.utter_message(template='utter_bad_answer')
-        dispatcher.utter_message(f"Vous devriez regarder les juex de données suivants: \n {response}")
+        dispatcher.utter_message(f"Vous devriez regarder les jeux de données suivants: \n {response}")
         return [AllSlotsReset()]
 
 class feedbackForm(FormAction):
