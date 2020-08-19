@@ -24,8 +24,8 @@ model = SentenceTransformer('distiluse-base-multilingual-cased')
 
 #--LOADS--# (but a separate function should be able to recommpute these from the original csv)
 #data=pd.read_csv('../../data/catalogue_locs_dropped.csv',sep=',', encoding='latin-1')
-id_table_new=list(np.load('../../data/id_table_new.npy', allow_pickle=True))
-embeddings=np.load('../../data/multilingual_embeddings_v2.npy', allow_pickle=True)
+id_table_new=list(np.load('../../data/test/id_table.npy', allow_pickle=True))
+embeddings=np.load('../../data/test/embeddings.npy', allow_pickle=True)
 ####### SEARCH FUNCTIONS ##########
 def query2vec(search_query):
     return(model.encode([search_query]))
